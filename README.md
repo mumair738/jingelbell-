@@ -54,7 +54,6 @@ To iterate on the CLI and test changes in a generated app without publishing to 
    ```bash
    npm link
    ```
-   This makes your local version globally available as a symlinked package.
 
 
 1. Now, when you run:
@@ -77,3 +76,98 @@ However, this does not fully replicate the npx install flow and may not catch al
 
 If you update environment variable handling, remember to replicate any changes in the `dev`, `build`, and `deploy` scripts as needed. The `build` and `deploy` scripts may need further updates and are less critical for most development workflows.
 
+---
+
+# JingleBell Token Farcaster Mini App Setup Guide
+
+This guide details the steps to set up a Farcaster Mini App for the JingleBell Token, allowing users to claim tokens through a Farcaster Frame.
+
+## Setup Instructions
+
+1.  **Clone the Repository:**
+    If you haven't already, clone the `create-farcaster-mini-app` repository:
+    ```bash
+    gh repo clone neynarxyz/create-farcaster-mini-app
+    cd create-farcaster-mini-app
+    ```
+
+2.  **Install Dependencies:**
+    Navigate into the cloned directory and install the necessary npm dependencies:
+    ```bash
+    npm install
+    ```
+
+3.  **Set Environment Variables:**
+    Create a `.env.local` file in the root of your `create-farcaster-mini-app` directory and populate it with your environment variables. **Ensure your private keys are kept secure and never committed to a public repository.**
+
+    ```
+    NEYNAR_API_KEY=your_neynar_key
+    WALLET_PRIVATE_KEY=your_private_key
+    RPC_URL=https://mainnet.base.org
+    CONTRACT_ADDRESS=0xFD08830Bb1ee0bB9afEe0721A6CE036b8b8402a3
+    ```
+
+    *   `NEYNAR_API_KEY`: Your API key from Neynar.
+    *   `WALLET_PRIVATE_KEY`: The private key of the wallet that will execute the `claim()` transaction.
+    *   `RPC_URL`: The RPC URL for the Base mainnet (or your chosen network).
+    *   `CONTRACT_ADDRESS`: The address of your JingleBell Token smart contract.
+
+4.  **Create Claim API Endpoint:**
+    Create a new file at `/app/api/claim/route.ts` inside your `create-farcaster-mini-app` directory with the following content. This API endpoint will handle the token claim logic.
+
+    ```typescript
+    import { ethers } from "ethers";
+
+    export async function POST(req: Request) {
+      const provider = new ethers.JsonRpcProvider(process.env.RPC_URL!);
+      const wallet = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
+
+      const contractAddress = process.env.CONTRACT_ADDRESS!;
+      const abi = [
+        "function claim() external",
+      ];
+
+      const contract = new ethers.Contract(contractAddress, abi, wallet);
+
+      try {
+        const tx = await contract.claim();
+        return Response.json({ success: true, tx: tx.hash });
+      } catch (e: any) {
+        return Response.json({ success: false, error: e.message });
+      }
+    }
+    ```
+
+5.  **Add Frame Button Example:**
+    Modify the file at `/app/frames/route.tsx` inside your `create-farcaster-mini-app` directory to include a button for claiming JingleBell Tokens.
+
+    ```typescript
+    import { FrameResponse } from "frames.js/next/server";
+
+    export async function GET() {
+      return new FrameResponse(
+        {
+          image: `https://yourdomain.com/jinglebell.jpg`,
+          buttons: [
+            {
+              label: "🎁 Claim 1000 JGB",
+              action: {
+                type: "post",
+                target: "/api/claim"
+              }
+            }
+          ]
+        }
+      );
+    }
+    ```
+    Remember to replace `https://yourdomain.com/jinglebell.jpg` with the actual URL of your image.
+
+## Result
+
+Once these steps are completed, your Farcaster Mini App will be ready:
+
+*   A user taps the "Claim 1000 JGB" button on the Frame.
+*   The Frame calls your `/api/claim` endpoint.
+*   Your smart contract's `claim()` function executes.
+*   The user receives 1000 JGB tokens.
