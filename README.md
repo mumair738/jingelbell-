@@ -104,7 +104,7 @@ This guide details the steps to set up a Farcaster Mini App for the JingleBell T
     NEYNAR_API_KEY=your_neynar_key
     WALLET_PRIVATE_KEY=your_private_key
     RPC_URL=https://mainnet.base.org
-    CONTRACT_ADDRESS=0xFD08830Bb1ee0bB9afEe0721A6CE036b8b8402a3
+    CONTRACT_ADDRESS=
     ```
 
     *   `NEYNAR_API_KEY`: Your API key from Neynar.
