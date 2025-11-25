@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { createServer } from 'net';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -51,15 +51,24 @@ async function killProcessOnPort(port) {
   try {
     if (process.platform === 'win32') {
       // Windows: Use netstat to find the process
-      const netstat = spawn('netstat', ['-ano', '|', 'findstr', `:${port}`]);
-      netstat.stdout.on('data', (data) => {
-        const match = data.toString().match(/\s+(\d+)$/);
-        if (match) {
-          const pid = match[1];
-          spawn('taskkill', ['/F', '/PID', pid]);
-        }
+      const command = `netstat -ano | findstr :${port}`;
+      const { stdout } = await new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+          if (error) reject(error);
+          resolve({ stdout, stderr });
+        });
       });
-      await new Promise((resolve) => netstat.on('close', resolve));
+
+      const match = stdout.toString().match(/\s+(\d+)$/);
+      if (match) {
+        const pid = match[1];
+        await new Promise((resolve, reject) => {
+          exec(`taskkill /F /PID ${pid}`, (error, stdout, stderr) => {
+            if (error) reject(error);
+            resolve({ stdout, stderr });
+          });
+        });
+      }
     } else {
       // Unix-like systems: Use lsof
       const lsof = spawn('lsof', ['-ti', `:${port}`]);
@@ -113,11 +122,11 @@ async function startDev() {
   // Start next dev with appropriate configuration
   const nextBin = path.normalize(path.join(projectRoot, 'node_modules', '.bin', 'next'));
 
-  nextDev = spawn(nextBin, ['dev', '-p', port.toString()], {
+  nextDev = spawn(process.platform === 'win32' ? `"${nextBin}"` : nextBin, ['dev', '-p', port.toString()], {
     stdio: 'inherit',
     env: { ...process.env, NEXT_PUBLIC_URL: miniAppUrl, NEXTAUTH_URL: miniAppUrl },
     cwd: projectRoot,
-    shell: process.platform === 'win32' // Add shell option for Windows
+    shell: true // Ensure shell is always used for complex commands/paths
   });
 
   // Handle cleanup
